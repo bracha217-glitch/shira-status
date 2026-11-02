@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#233D92">
+<link rel="icon" href="assets/shira-logo-blue.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>מחולל הסטטוס של שירה</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* פריסה: תצוגה מקדימה של הסטטוס למעלה, טופס קצר מתחת, כפתור שליחה צף בתחתית */
+:root{
+  --bg:#fbfbfa; --fg:#233D92; --muted:#65749a; --line:#d6ddec; --field:#ffffff;
+  --blue:#233D92; --cyan:#58C5C8; --coral:#D84531; --yellow:#FDCF0A;
+  --chip:#eef2fb; --chip-on:#233D92; --chip-on-fg:#ffffff;
+  --font:"Leon","Arial Hebrew",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0f1f4f; --fg:#f4f6fb; --muted:#aab6d6; --line:#2d4080; --field:#17295f; --chip:#1a2d66; --chip-on:#FDCF0A; --chip-on-fg:#0f1f4f; color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#0f1f4f; --fg:#f4f6fb; --muted:#aab6d6; --line:#2d4080; --field:#17295f; --chip:#1a2d66; --chip-on:#FDCF0A; --chip-on-fg:#0f1f4f; color-scheme:dark }
+@font-face{font-family:"Leon";src:url("assets/leon-regular.otf") format("opentype");font-weight:400}
+@font-face{font-family:"Leon";src:url("assets/leon-bold.otf") format("opentype");font-weight:700}
+@font-face{font-family:"Leon";src:url("assets/leon-heavy.otf") format("opentype");font-weight:900}
+@font-face{font-family:"Yad";src:url("assets/SB-Artline-Yad-v4-1.woff2") format("woff2")}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{margin:0;font-family:var(--font);font-size:17px;line-height:1.35;direction:rtl}
+.wrap{max-width:720px;margin:0 auto;padding-block:14px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.01em}
+header img{height:22px}
+.preview{display:grid;place-items:center}
+.preview canvas{width:min(100%,360px);aspect-ratio:9/16;border-radius:22px;box-shadow:0 18px 45px rgba(19,46,116,.18);background:#233D92;touch-action:auto;cursor:default;user-select:none}
+.preview canvas.move{touch-action:none;cursor:grab;outline:3px solid var(--coral);outline-offset:4px}
+/* מצב הזזה: מסך שלם, הכפתור "סיימתי" קבוע למעלה */
+body.moving{overflow:hidden}
+body.moving .preview{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));place-items:stretch}
+body.moving .preview header{display:none}
+body.moving .preview .tools{order:-1;width:100%;margin:0;align-content:start}
+body.moving .preview canvas{justify-self:center;align-self:center;max-width:100%}
+body.moving .actions{display:none}
+.tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:min(100%,360px);margin-top:10px}
+.tools .chip{font-size:14px;padding:7px 12px}
+.tools .note{width:100%;text-align:center}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.tpls{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 8px;scroll-snap-type:x proximity}
+.tpl{flex:none;width:92px;border:0;background:none;padding:0;cursor:pointer;display:grid;gap:6px;justify-items:center;color:var(--muted);font-family:var(--font);font-size:14px;scroll-snap-align:start}
+.tpl canvas{width:92px;aspect-ratio:9/16;border-radius:12px;border:3px solid transparent;background:#233D92}
+.tpl[aria-pressed="true"]{color:var(--fg)}
+.tpl[aria-pressed="true"] canvas{border-color:var(--coral)}
+.tpl:focus-visible canvas{outline:3px solid var(--cyan);outline-offset:2px}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:12px}
+legend{font-weight:900;font-size:18px;margin-bottom:6px;padding:0}
+label.f{display:grid;gap:5px;font-size:15px;color:var(--muted)}
+input[type=text],textarea{width:100%;font:inherit;font-size:18px;color:var(--fg);background:var(--field);border:1.5px solid var(--line);border-radius:14px;padding:11px 14px;min-width:0}
+textarea{resize:vertical;min-height:84px}
+input:focus-visible,textarea:focus-visible{outline:2px solid var(--cyan);outline-offset:1px;border-color:var(--cyan)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--chip);color:var(--fg);font:inherit;font-size:15px;padding:8px 14px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-fg);border-color:var(--chip-on)}
+.chip .sw{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.chip:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.objs{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.obj{border:2px solid var(--line);background:var(--field);border-radius:14px;aspect-ratio:1;padding:8px;cursor:pointer;display:grid;place-items:center;font:inherit;font-size:13px;color:var(--muted);gap:4px}
+.obj img{max-width:100%;max-height:52px;object-fit:contain}
+.obj[aria-pressed="true"]{border-color:var(--coral);color:var(--fg)}
+.obj:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.checks{display:flex;flex-wrap:wrap;gap:10px 18px}
+.checks label{display:inline-flex;align-items:center;gap:8px;font-size:16px}
+.checks input{width:20px;height:20px;accent-color:var(--blue)}
+.file{display:inline-flex;align-items:center;gap:8px;border:1.5px dashed var(--line);border-radius:14px;padding:10px 14px;cursor:pointer;color:var(--muted);font-size:15px;background:var(--field)}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+.file:focus-within{outline:2px solid var(--cyan)}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--bg);border-top:1px solid var(--line);display:flex;gap:10px;justify-content:center}
+.btn{font:inherit;font-weight:900;font-size:18px;border:0;border-radius:999px;padding:14px 26px;cursor:pointer;background:var(--blue);color:#fff;display:inline-flex;align-items:center;gap:10px}
+.btn.alt{background:var(--chip);color:var(--fg);font-weight:700}
+.btn:disabled{opacity:.55;cursor:default}
+.btn:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+.note{font-size:14px;color:var(--muted);margin:0}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:15px;z-index:6;max-width:90vw;text-align:center}
+@media (prefers-reduced-motion:no-preference){.toast{animation:pop .25s ease}}
+@keyframes pop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (min-width:720px){.wrap{grid-template-columns:380px 1fr;align-items:start}.preview{position:sticky;top:14px}.side{display:grid;gap:22px}}
+</style>
+
+<div class="wrap">
+  <div class="preview">
+    <header style="width:min(100%,360px);margin-bottom:10px"><h1>מחולל הסטטוס</h1><img src="assets/shira-logo-blue.png" alt="SHIRA" id="hdrLogo"></header>
+    <canvas id="cv" width="1080" height="1920" aria-label="תצוגה מקדימה של הסטטוס"></canvas>
+    <div class="tools"><button type="button" class="chip" id="moveMode" aria-pressed="false">להזיז אלמנטים</button><p class="note" id="moveNote" hidden>גוררים אלמנט באצבע. שתי אצבעות על האובייקט מגדילות או מקטינות.</p><button type="button" class="chip" id="objBigger">האובייקט גדול יותר</button><button type="button" class="chip" id="objSmaller">האובייקט קטן יותר</button><button type="button" class="chip" id="resetPos">לאפס מיקומים</button></div>
+  </div>
+  <div class="side">
+    <fieldset>
+      <legend>תבנית</legend>
+      <div class="tpls" id="tpls"></div>
+    </fieldset>
+    <fieldset>
+      <legend>הטקסט</legend>
+      <label class="f">כותרת קטנה<input type="text" id="eyebrow" value="פרויקט חדש"></label>
+      <label class="f">כותרת גדולה (אנטר לשורה חדשה)<textarea id="title">עלה
+על הגל</textarea></label>
+      <label class="f">תת-כותרת<input type="text" id="sub" value="שיתוף מיתוג מתוך הסטודיו"></label>
+      <div class="row">
+        <label class="f">והפעם: שם<input type="text" id="name" value="מינדי רבינוביץ"></label>
+        <label class="f">תחום<input type="text" id="role" value='יועצת משכנתאות ונדל"ן'></label>
+      </div>
+      <label class="f">מילת רפאים באנגלית ברקע (בטיזר: כל מילה בשורה)<input type="text" id="ghost" value="NEW" style="direction:ltr;text-align:right"></label>
+    </fieldset>
+    <fieldset>
+      <legend>אובייקט</legend>
+      <div class="objs" id="objs"></div>
+      <label class="file">תמונה משלי (PNG שקוף עובד הכי טוב)<input type="file" id="objFile" accept="image/*"></label>
+    </fieldset>
+    <fieldset>
+      <legend>רקע</legend>
+      <div class="chips" id="bgs"></div>
+      <label class="file">תמונת רקע משלי<input type="file" id="bgFile" accept="image/*"></label>
+      <div id="bgNote" hidden><label class="f">כמה מהצבע לשים על התמונה (ימינה: יותר צבע, הטקסט קריא יותר)<input type="range" id="bgFade" min="0" max="95" value="60"></label><p class="note">התמונה נשארת מתחת, והצבע שבחרת נשפך עליה בשקיפות. כל הטקסטים והאלמנטים מעליה. <button type="button" class="chip" id="bgClear">להסיר את התמונה</button></p></div>
+    </fieldset>
+    <fieldset>
+      <legend>מה להציג</legend>
+      <div class="checks">
+        <label><input type="checkbox" id="showLogo" checked>לוגו</label>
+        <label><input type="checkbox" id="showSite" checked>כתובת האתר</label>
+        <label><input type="checkbox" id="showGhost" checked>מילת הרפאים</label>
+        <label><input type="checkbox" id="showWho" checked>שורת "והפעם"</label>
+        <label><input type="checkbox" id="showObj" checked>האובייקט</label>
+      </div>
+    </fieldset>
+    <p class="note" id="hint">בסיום: הכפתור למטה פותח את חלון השיתוף של הטלפון, ושם בוחרים וואטסאפ.</p>
+  </div>
+</div>
+<div class="actions">
+  <button class="btn" id="share" type="button">לשלוח לוואטסאפ</button>
+  <button class="btn alt" id="save" type="button">לשמור תמונה</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+const W=1080,H=1920;
+const C={blue:"#233D92",deep:"#1a2f75",cyan:"#58C5C8",coral:"#D84531",yellow:"#FDCF0A",paper:"#fbfbfa",ink:"#233D92",muted:"#65749a",white:"#ffffff"};
+const OBJS=[
+  {id:"dolphin",name:"דולפין",src:"assets/new-dolphin.png"},
+  {id:"boat-wave",name:"סירה בגל",src:"assets/new-boat.png"},
+  {id:"anchor",name:"עוגן",src:"assets/new-anchor.png"},
+  {id:"lighthouse",name:"מגדלור",src:"assets/new-lighthouse.png"},
+  {id:"boat-cross",name:"סירה חוצה גל",src:"assets/boat-wave-cross.png"},
+  {id:"chest",name:"תיבת אוצר",src:"assets/new-chest.png"},
+  {id:"bottle",name:"בקבוק מסר",src:"assets/new-bottle.png"},
+  {id:"compass",name:"הגה",src:"assets/new-wheel.png"},
+  {id:"binoculars",name:"משקפת",src:"assets/new-binoculars.png"},
+  {id:"buoy",name:"גלגל הצלה",src:"assets/origami-buoy.webp"},
+  {id:"surf",name:"גלשן",src:"assets/origami-surf.webp"},
+  {id:"none",name:"בלי",src:""}
+];
+const BGS=[{id:"blue",name:"כחול",hex:C.blue},{id:"yellow",name:"צהוב",hex:C.yellow},{id:"coral",name:"קורל",hex:C.coral},{id:"cyan",name:"טורקיז",hex:C.cyan},{id:"paper",name:"קרם",hex:C.paper}];
+const TPLS=[
+  {id:"card",name:"פסים וכרטיס",bg:"blue"},
+  {id:"photo",name:"תמונה בשקיפות",bg:"blue"},
+  {id:"teaser",name:"הטיזר",bg:"blue"},
+  {id:"hero",name:"הירו של האתר",bg:"blue"},
+  {id:"edge",name:"חורג מהמסגרת",bg:"blue"},
+  {id:"solid",name:"צבע מלא",bg:"yellow"}
+];
+const state={tpl:"card",obj:"dolphin",bg:"blue",bgImg:null,objImg:null,eyebrow:"",title:"",sub:"",name:"",role:"",ghost:"NEW",showLogo:true,showSite:true,showGhost:true,showWho:true,showObj:true,offsets:{},bgFade:60};
+const imgs={};
+function loadImg(src){ if(imgs[src]) return imgs[src]; imgs[src]=new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src}); return imgs[src]; }
+const logoW=loadImg("assets/shira-logo-white.png"), logoB=loadImg("assets/shira-logo-blue.png"), stripes=loadImg("assets/brand-waves-white.webp");
+const fontsReady=(async()=>{ try{ const defs=[["Leon","assets/leon-regular.otf",400],["Leon","assets/leon-bold.otf",700],["Leon","assets/leon-heavy.otf",900],["Yad","assets/SB-Artline-Yad-v4-1.woff2",400]]; await Promise.all(defs.map(async([fam,url,w])=>{const buf=await (await fetch(url)).arrayBuffer();const f=new FontFace(fam,buf,{weight:String(w)});await f.load();document.fonts.add(f);})); }catch(e){} })();
+
+/* ---------- עזרים לציור ---------- */
+function hexLum(hex){const n=parseInt(hex.slice(1),16);const r=n>>16&255,g=n>>8&255,b=n&255;return (0.2126*r+0.7152*g+0.0722*b)/255;}
+function isDark(hex){return hexLum(hex)<0.5;}
+function font(ctx,w,size,fam){ctx.font=`${w} ${size}px "${fam||"Leon"}"`;}
+function wrap(ctx,text,maxW){const out=[];for(const p of String(text||"").split("\n")){let line="";for(const w of p.split(" ")){const t=line?line+" "+w:w;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=w;}else line=t;}out.push(line);}return out;}
+function fitWord(ctx,text,maxSize,targetW){font(ctx,900,100);try{ctx.letterSpacing="-4px";}catch(e){}const w=ctx.measureText(text).width||1;return Math.min(maxSize,Math.floor(targetW/w*100));}
+/* אלמנטים ניתנים לגרירה: כל ציור מתבצע תחת שם אלמנט, מקבל הזזה ונרשם בתיבה */
+let curEl=null;let cur={offs:{},boxes:{}};let mainBoxes={};
+function el(n){curEl=n||null;}
+function O(){const o=curEl&&cur.offs[curEl];return o||{dx:0,dy:0,s:1};}
+function rec(x,y,w,h){if(!curEl)return;const b=cur.boxes[curEl];if(!b){cur.boxes[curEl]={x,y,w,h};return;}const x2=Math.max(b.x+b.w,x+w),y2=Math.max(b.y+b.h,y+h);b.x=Math.min(b.x,x);b.y=Math.min(b.y,y);b.w=x2-b.x;b.h=y2-b.y;}
+function titleBlock(ctx,text,x,yTop,size,maxW,color,align){const t=fitLines(ctx,text,size,maxW,Math.round(size*.6));const lines=t.lines.slice(0,2);const lh=size*.95;let y=yTop+(lines.length===1?lh/2:0);for(const l of lines){y+=lh;drawText(ctx,l,x,y,{w:900,size:t.size,color,align,ls:"2px"});}return yTop+lh*2;}
+function fitLines(ctx,text,size,maxW,min){let s=size;for(;;){font(ctx,900,s);const lines=wrap(ctx,text,maxW);const wide=lines.some(l=>ctx.measureText(l).width>maxW);if(!wide||s<=min)return{lines,size:s};s-=10;}}
+function drawText(ctx,text,x,y,o){o=o||{};const of=O();x+=of.dx;y+=of.dy;font(ctx,o.w||400,o.size,o.fam);ctx.fillStyle=o.color;ctx.textAlign=o.align||"right";ctx.textBaseline=o.base||"alphabetic";ctx.direction=o.dir||"rtl";try{ctx.letterSpacing=o.ls||"0px";}catch(e){}ctx.fillText(text,x,y);const m=ctx.measureText(text).width;const al=o.align||"right";const bx=al==="center"?x-m/2:al==="left"?x:x-m;const by=o.base==="top"?y:o.base==="middle"?y-o.size/2:y-o.size*.78;rec(bx,by,m,o.size);}
+function drawObjAt(ctx,img,cx,cy,maxW,maxH){if(!img)return;const of=O();cx+=of.dx;cy+=of.dy;const s=Math.min(maxW/img.width,maxH/img.height)*(of.s||1);const w=img.width*s,h=img.height*s;ctx.drawImage(img,cx-w/2,cy-h/2,w,h);rec(cx-w/2,cy-h/2,w,h);}
+function drawObj(ctx,img,cx,bottom,maxW,maxH){if(!img)return;const s=Math.min(maxW/img.width,maxH/img.height);const w=img.width*s,h=img.height*s;ctx.drawImage(img,cx-w/2,bottom-h,w,h);}
+function drawCover(ctx,img,x,y,w,h){const s=Math.max(w/img.width,h/img.height);const iw=img.width*s,ih=img.height*s;ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(img,x+(w-iw)/2,y+(h-ih)/2,iw,ih);ctx.restore();}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function navWave(ctx,x,y,w,color){const of=O();x+=of.dx;y+=of.dy;ctx.save();ctx.translate(x,y);ctx.scale(w/96,w/96);ctx.beginPath();ctx.moveTo(2,8);ctx.bezierCurveTo(7,3,12,3,17,8);ctx.bezierCurveTo(22,13,27,13,32,8);ctx.bezierCurveTo(37,3,42,3,47,8);ctx.bezierCurveTo(52,13,57,13,62,8);ctx.bezierCurveTo(67,3,72,3,77,8);ctx.bezierCurveTo(82,13,87,13,94,7);ctx.strokeStyle=color;ctx.lineWidth=2.4;ctx.lineCap="round";ctx.stroke();ctx.restore();}
+function softWave(ctx,top,color){ /* גל עדין: מ-top ועד תחתית */ ctx.save();ctx.translate(0,top);const sy=(H-top)/300;ctx.scale(W/1080,sy);ctx.beginPath();ctx.moveTo(0,40);ctx.bezierCurveTo(250,100,420,0,700,50);ctx.bezierCurveTo(900,86,1000,60,1080,30);ctx.lineTo(1080,300);ctx.lineTo(0,300);ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.restore();}
+function paintBg(ctx,hex,bgImg,rect){const [x,y,w,h]=rect||[0,0,W,H];ctx.fillStyle=hex;ctx.fillRect(x,y,w,h);if(bgImg){drawCover(ctx,bgImg,x,y,w,h);ctx.fillStyle=hex;ctx.globalAlpha=(cur.fade==null?60:cur.fade)/100;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1;}}
+function pal(hex){const d=isDark(hex);const yellowish=hex===C.yellow||hex===C.cyan;return{dark:d,fg:d?C.white:C.ink,eyebrow:d?C.cyan:C.coral,muted:d?"rgba(255,255,255,.78)":C.muted,coral:d?C.coral:C.coral,ghost:d?"rgba(255,255,255,.14)":(yellowish?"rgba(29,55,148,.08)":"rgba(29,55,148,.07)"),bar:d?C.paper:C.blue,barFg:d?C.ink:C.white,logo:d?"white":"blue"};}
+function whoBlock(ctx,x,yTop,align,p,d){ /* שורת והפעם */ if(!d.showWho||!(d.name||d.role))return 0;let y=yTop;drawText(ctx,"והפעם:",x,y+56,{fam:"Yad",size:66,color:p.coral,align});y+=80;if(d.name){drawText(ctx,d.name,x,y+66,{w:900,size:72,color:p.fg,align});y+=86;}if(d.role){drawText(ctx,d.role,x,y+30,{w:400,size:34,color:p.muted,align});y+=46;}return y-yTop;}
+function whoHeight(d){if(!d.showWho||!(d.name||d.role))return 0;return 80+(d.name?86:0)+(d.role?46:0);}
+function siteText(ctx,x,y,color,align){drawText(ctx,"SHIRABRACHA.COM",x,y,{w:700,size:28,color,align:align||"right",dir:"ltr",ls:"2px"});}
+async function logo(ctx,kind,x,y,w,align){const img=await (kind==="white"?logoW:logoB);if(!img)return;const of=O();x+=of.dx;y+=of.dy;const h=w*img.height/img.width;const lx=align==="center"?x-w/2:align==="left"?x:x-w;ctx.drawImage(img,lx,y,w,h);rec(lx,y,w,h);}
+
+/* ---------- התבניות ---------- */
+function t2size(d,wh){const lines=(d.title||"").split("\n").length;return lines>1?(wh?130:160):170;}
+const draw={
+  async edge(ctx,d,A){ const bg=A.bgHex,p=pal(bg);paintBg(ctx,bg,A.bgImg);
+    if(d.showGhost&&d.ghost){el("ghost");const og=O();ctx.save();ctx.translate(930+og.dx,H/2+og.dy);ctx.rotate(Math.PI/2);el(null);drawText(ctx,d.ghost,0,0,{w:900,size:420,color:p.ghost,align:"center",base:"middle",dir:"ltr",ls:"-18px"});ctx.restore();el("ghost");rec(930+og.dx-170,og.dy+100,340,H-200);}
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,300,1500,1200,760);
+    el("logo");if(d.showLogo)await logo(ctx,p.logo,1000,84,230,"right");
+    el("eyebrow");navWave(ctx,700,340,300,p.eyebrow);el("eyebrow");if(d.eyebrow)drawText(ctx,d.eyebrow,1000,400,{w:700,size:44,color:p.eyebrow});
+    el("title");titleBlock(ctx,d.title,1000,430,150,920,p.fg,"right");
+    el("sub");if(d.sub)drawText(ctx,d.sub,1000,805,{w:400,size:42,color:p.eyebrow});
+    el("who");whoBlock(ctx,1000,H-300-whoHeight(d),"right",p,d);
+    el("site");if(d.showSite)siteText(ctx,1000,H-72,p.fg);
+  },
+  async solid(ctx,d,A){ const bg=A.bgHex,p=pal(bg);paintBg(ctx,bg,A.bgImg);
+    el("ghost");if(d.showGhost&&d.ghost){const gs=fitWord(ctx,d.ghost,560,1250);drawText(ctx,d.ghost,W/2,120,{w:900,size:gs,color:p.ghost,align:"center",base:"top",dir:"ltr",ls:"-25px"});}
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,470,1250,1000,800);
+    el("logo");if(d.showLogo)await logo(ctx,p.logo,1000,84,230,"right");
+    el("eyebrow");navWave(ctx,700,320,300,p.eyebrow);el("eyebrow");if(d.eyebrow)drawText(ctx,d.eyebrow,1000,380,{w:700,size:46,color:p.eyebrow});
+    el("title");titleBlock(ctx,d.title,1000,410,150,920,p.fg,"right");
+    el("sub");if(d.sub)drawText(ctx,d.sub,1000,785,{w:400,size:42,color:p.fg});
+    el(null);const bp=pal(p.bar);ctx.fillStyle=p.bar;ctx.fillRect(0,H-260,W,260);
+    const wh=whoHeight(d);el("who");whoBlock(ctx,1000,H-130-wh/2-10,"right",{...bp,coral:C.coral},d);
+    el("site");if(d.showSite)siteText(ctx,80,H-130+10,bp.fg,"left");
+  },
+  async card(ctx,d,A){ const base=A.bgHex;const dark=isDark(base);paintBg(ctx,base,A.bgImg);
+    el(null);const st=await stripes;if(st&&!A.bgImg){ctx.save();ctx.globalAlpha=dark?1:.9;for(let y=-120;y<H;y+=500){const w=1300,h=w*st.height/st.width;ctx.drawImage(st,-80,y,w,h);}ctx.restore();}
+    const cx=90,cy=400,cw=W-180,ch=H-400-280;ctx.fillStyle=C.paper;roundRect(ctx,cx,cy,cw,ch,72);ctx.fill();const p=pal(C.paper);
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,540,520,620,580);
+    el("eyebrow");if(d.eyebrow)drawText(ctx,d.eyebrow,W/2,900,{w:700,size:46,color:p.eyebrow,align:"center"});
+    el("title");titleBlock(ctx,d.title,W/2,930,150,cw-140,p.fg,"center");
+    el("sub");if(d.sub)drawText(ctx,d.sub,W/2,1300,{w:400,size:40,color:p.muted,align:"center"});
+    el("who");whoBlock(ctx,W/2,1385,"center",p,d);
+    el(null);ctx.fillStyle=C.blue;ctx.fillRect(0,H-250,W,250);el("logo");if(d.showLogo)await logo(ctx,"white",W/2,H-205,240,"center");el("site");if(d.showSite)siteText(ctx,W/2,H-62,C.white,"center");
+  },
+  async photo(ctx,d,A){ const bg=A.bgHex,p=pal(bg);paintBg(ctx,bg,A.bgImg);
+    if(!A.bgImg){el(null);ctx.save();ctx.globalAlpha=.08;ctx.fillStyle=p.fg;font(ctx,700,40);ctx.textAlign="center";ctx.direction="rtl";ctx.fillText("כאן תעלי תמונת רקע (בחלק 'רקע')",W/2,H/2);ctx.restore();}
+    el("ghost");if(d.showGhost&&d.ghost){const gs=fitWord(ctx,d.ghost,300,1000);drawText(ctx,d.ghost,W/2,170,{w:900,size:gs,color:p.dark?"rgba(255,255,255,.16)":p.ghost,align:"center",base:"top",dir:"ltr",ls:"-8px"});}
+    el("logo");if(d.showLogo)await logo(ctx,p.logo,W/2,70,220,"center");
+    const ac=p.dark?C.yellow:p.eyebrow;el("eyebrow");navWave(ctx,W/2-150,560,300,ac);if(d.eyebrow)drawText(ctx,d.eyebrow,W/2,630,{w:700,size:44,color:ac,align:"center"});
+    el("title");titleBlock(ctx,d.title,W/2,660,150,920,p.fg,"center");
+    el("sub");if(d.sub)drawText(ctx,d.sub,W/2,1015,{w:400,size:42,color:p.dark?C.cyan:p.muted,align:"center"});
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,540,1300,560,400);
+    const wh=whoHeight(d);el("who");whoBlock(ctx,W/2,H-190-wh,"center",{...p,fg:p.dark?C.yellow:p.fg,coral:p.dark?C.white:p.coral},d);
+    el("site");if(d.showSite)siteText(ctx,W/2,H-60,p.dark?"rgba(255,255,255,.85)":p.fg,"center");
+  },
+  async teaser(ctx,d,A){ const bg=A.bgHex,p=pal(bg);paintBg(ctx,bg,A.bgImg);
+    el("ghost");if(d.showGhost&&d.ghost){const words=d.ghost.split(/s+/).filter(Boolean);let gy=140;for(const wd of words){const gs=fitWord(ctx,wd,300,1100);drawText(ctx,wd,W/2,gy,{w:900,size:gs,color:p.dark?"rgba(96,124,206,.45)":p.ghost,align:"center",base:"top",dir:"ltr",ls:"-8px"});gy+=gs*.82;}}
+    el("logo");if(d.showLogo)await logo(ctx,p.logo,W/2,70,220,"center");
+    const ac=p.dark?C.coral:p.eyebrow;el("eyebrow");navWave(ctx,W/2-150,450,300,ac);
+    el("eyebrow");if(d.eyebrow)drawText(ctx,d.eyebrow,W/2,520,{w:700,size:44,color:ac,align:"center"});
+    el("title");titleBlock(ctx,d.title,W/2,550,150,920,p.fg,"center");
+    el("sub");if(d.sub)drawText(ctx,d.sub,W/2,905,{w:400,size:42,color:p.dark?C.cyan:p.muted,align:"center"});
+    el(null);const st=await stripes;if(st&&!A.bgImg&&p.dark){const sw=1300,sh=sw*st.height/st.width;ctx.drawImage(st,-80,H-330-sh,sw,sh);}
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,540,1230,820,560);
+    const wh=whoHeight(d);el("who");whoBlock(ctx,W/2,H-150-wh,"center",{...p,fg:p.dark?C.yellow:p.fg,coral:p.dark?C.white:p.coral},d);
+    el("site");if(d.showSite)siteText(ctx,W/2,H-48,p.dark?"rgba(255,255,255,.8)":p.fg,"center");
+  },
+  async hero(ctx,d,A){ const bg=A.bgHex,p=pal(bg);paintBg(ctx,bg,A.bgImg);
+    el("ghost");if(d.showGhost&&d.ghost){let gy=300;for(const a of [.32,.22,.14]){drawText(ctx,d.ghost,W/2,gy,{w:900,size:235,color:p.dark?`rgba(255,255,255,${a*.6})`:`rgba(35,61,146,${a*.3})`,align:"center",base:"top",dir:"ltr",ls:"-10px"});gy+=172;}}
+    el("logo");if(d.showLogo)await logo(ctx,p.logo,W/2,90,300,"center");
+    el("eyebrow");navWave(ctx,690,398,300,p.eyebrow);el("eyebrow");if(d.eyebrow)drawText(ctx,d.eyebrow,990,460,{w:700,size:44,color:p.eyebrow});
+    el("title");titleBlock(ctx,d.title,990,490,150,900,p.fg,"right");
+    el("sub");if(d.sub)drawText(ctx,d.sub,990,865,{w:400,size:42,color:p.eyebrow});
+    el(null);softWave(ctx,H*.6,C.paper);
+    el("obj");if(d.showObj)drawObjAt(ctx,A.obj,540,1160,640,520);
+    const pp=pal(C.paper);const wh=whoHeight(d);el("who");whoBlock(ctx,W/2,H-170-wh,"center",pp,d);
+    el("site");if(d.showSite)siteText(ctx,W/2,H-56,C.ink,"center");
+  }
+};
+
+async function assets(d){const o=OBJS.find(x=>x.id===d.obj);const obj=d.obj==="custom"?d.objImg:(o&&o.src?await loadImg(o.src):null);const b=BGS.find(x=>x.id===d.bg);return{obj,bgHex:b?b.hex:C.blue,bgImg:d.bgImg};}
+async function render(ctx,tplId,d,scale,isMain){await fontsReady;const A=await assets(d);const prev=cur;cur={offs:(d.offsets&&d.offsets[tplId])||{},boxes:{},fade:d.bgFade};ctx.save();ctx.setTransform(scale||1,0,0,scale||1,0,0);ctx.clearRect(0,0,W,H);await draw[tplId](ctx,d,A);el(null);ctx.restore();if(isMain)mainBoxes=cur.boxes;cur=prev;}
+
+/* ---------- הממשק ---------- */
+const $=id=>document.getElementById(id);
+const cv=$("cv"),ctx=cv.getContext("2d");
+let pending=null;
+function schedule(){if(pending)return;pending=requestAnimationFrame(async()=>{pending=null;await render(ctx,state.tpl,state,1,true);drawOutline();renderThumbs();});}
+function drawOutline(){if(!drag||!mainBoxes[drag.n])return;const b=mainBoxes[drag.n];ctx.save();ctx.setLineDash([14,10]);ctx.lineWidth=4;ctx.strokeStyle=C.coral;ctx.strokeRect(b.x-12,b.y-12,b.w+24,b.h+24);ctx.restore();}
+/* גרירת אלמנטים על התצוגה */
+function getOff(n){if(!state.offsets)state.offsets={};const t=state.offsets[state.tpl]||(state.offsets[state.tpl]={});return t[n]||(t[n]={dx:0,dy:0,s:1});}
+const hitOrder=["who","sub","title","eyebrow","obj","logo","site","ghost"];
+function toCanvas(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
+const ptrs=new Map();let drag=null,pinch=null,moveMode=false;
+function fitMove(){if(!moveMode){cv.style.width="";cv.style.height="";return;}const pv=cv.parentElement,tools=$("moveMode").parentElement;const cs=getComputedStyle(pv);const availH=pv.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-tools.offsetHeight-10-8;const availW=pv.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight)-8;const w=Math.max(120,Math.min(availW,availH*9/16));cv.style.width=w+"px";cv.style.height=(w*16/9)+"px";}
+$("moveMode").addEventListener("click",()=>{moveMode=!moveMode;cv.classList.toggle("move",moveMode);document.body.classList.toggle("moving",moveMode);$("moveMode").setAttribute("aria-pressed",String(moveMode));$("moveMode").textContent=moveMode?"סיימתי להזיז":"להזיז אלמנטים";$("moveNote").hidden=!moveMode;fitMove();if(!moveMode){ptrs.clear();drag=null;pinch=null;schedule();}});
+window.addEventListener("resize",fitMove);
+cv.addEventListener("pointerdown",e=>{if(!moveMode)return;e.preventDefault();cv.setPointerCapture(e.pointerId);const p=toCanvas(e);ptrs.set(e.pointerId,p);
+  if(ptrs.size===1){const n=hitOrder.find(n=>{const b=mainBoxes[n];return b&&p.x>=b.x-24&&p.x<=b.x+b.w+24&&p.y>=b.y-24&&p.y<=b.y+b.h+24;});if(n){const o=getOff(n);drag={n,sx:p.x,sy:p.y,dx0:o.dx,dy0:o.dy};cv.style.cursor="grabbing";schedule();}}
+  else if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d0:Math.hypot(a.x-b.x,a.y-b.y),s0:getOff("obj").s||1};drag=null;}});
+cv.addEventListener("pointermove",e=>{if(!ptrs.has(e.pointerId))return;const p=toCanvas(e);ptrs.set(e.pointerId,p);
+  if(pinch&&ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);getOff("obj").s=Math.max(.3,Math.min(3,pinch.s0*d/pinch.d0));schedule();}
+  else if(drag){const o=getOff(drag.n);o.dx=Math.round(drag.dx0+p.x-drag.sx);o.dy=Math.round(drag.dy0+p.y-drag.sy);schedule();}});
+function endPtr(e){ptrs.delete(e.pointerId);if(ptrs.size===0){if(drag||pinch)save();drag=null;pinch=null;cv.style.cursor="grab";schedule();}}
+cv.addEventListener("pointerup",endPtr);cv.addEventListener("pointercancel",endPtr);
+$("objBigger").addEventListener("click",()=>{const o=getOff("obj");o.s=Math.min(3,(o.s||1)*1.12);save();schedule();});
+$("objSmaller").addEventListener("click",()=>{const o=getOff("obj");o.s=Math.max(.3,(o.s||1)/1.12);save();schedule();});
+$("resetPos").addEventListener("click",()=>{if(state.offsets)delete state.offsets[state.tpl];save();schedule();toast("המיקומים חזרו לגריד הקבוע");});
+$("bgFade").addEventListener("input",()=>{state.bgFade=+$("bgFade").value;save();schedule();});
+function readForm(){state.eyebrow=$("eyebrow").value.trim();state.title=$("title").value.trim();state.sub=$("sub").value.trim();state.name=$("name").value.trim();state.role=$("role").value.trim();state.ghost=$("ghost").value.trim();for(const k of ["showLogo","showSite","showGhost","showWho","showObj"])state[k]=$(k).checked;save();schedule();}
+["eyebrow","title","sub","name","role","ghost"].forEach(id=>$(id).addEventListener("input",readForm));
+["showLogo","showSite","showGhost","showWho","showObj"].forEach(id=>$(id).addEventListener("change",readForm));
+/* תבניות */
+const thumbs={};
+for(const t of TPLS){const b=document.createElement("button");b.type="button";b.className="tpl";b.setAttribute("aria-pressed",String(t.id===state.tpl));const c=document.createElement("canvas");c.width=108;c.height=192;b.appendChild(c);b.appendChild(document.createTextNode(t.name));b.addEventListener("click",()=>{state.tpl=t.id;state.bg=t.bg;syncBg();for(const x of document.querySelectorAll(".tpl"))x.setAttribute("aria-pressed",String(x===b));save();schedule();});$("tpls").appendChild(b);thumbs[t.id]=c;}
+let thumbTimer=null;
+function renderThumbs(){clearTimeout(thumbTimer);thumbTimer=setTimeout(async()=>{for(const t of TPLS){const c=thumbs[t.id];const d={...state,bg:t.id===state.tpl?state.bg:t.bg};await render(c.getContext("2d"),t.id,d,0.1);}},150);}
+/* אובייקטים */
+for(const o of OBJS){const b=document.createElement("button");b.type="button";b.className="obj";b.dataset.id=o.id;b.setAttribute("aria-pressed",String(o.id===state.obj));if(o.src){const i=new Image();i.src=o.src;i.alt="";b.appendChild(i);}b.appendChild(document.createTextNode(o.name));b.addEventListener("click",()=>{state.obj=o.id;syncObj();save();schedule();});$("objs").appendChild(b);}
+function syncObj(){for(const x of document.querySelectorAll(".obj"))x.setAttribute("aria-pressed",String(x.dataset.id===state.obj));}
+$("objFile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const i=new Image();i.onload=()=>{state.objImg=i;state.obj="custom";syncObj();schedule();};i.src=URL.createObjectURL(f);});
+/* רקעים */
+for(const b of BGS){const c=document.createElement("button");c.type="button";c.className="chip";c.dataset.id=b.id;const sw=document.createElement("span");sw.className="sw";sw.style.background=b.hex;c.appendChild(sw);c.appendChild(document.createTextNode(b.name));c.addEventListener("click",()=>{state.bg=b.id;syncBg();save();schedule();});$("bgs").appendChild(c);}
+function syncBg(){for(const x of document.querySelectorAll("#bgs .chip"))x.setAttribute("aria-pressed",String(x.dataset.id===state.bg));}
+$("bgFile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const i=new Image();i.onload=()=>{state.bgImg=i;$("bgNote").hidden=false;schedule();};i.src=URL.createObjectURL(f);});
+$("bgClear").addEventListener("click",()=>{state.bgImg=null;$("bgNote").hidden=true;$("bgFile").value="";schedule();});
+/* זיכרון מקומי לנוחות בלבד */
+function save(){try{const {bgImg,objImg,...rest}=state;localStorage.setItem("shira-status-v2",JSON.stringify(rest));}catch(e){}}
+function restore(){try{const s=JSON.parse(localStorage.getItem("shira-status-v2")||"null");if(!s)return;Object.assign(state,s);if(!state.offsets||typeof state.offsets!=="object")state.offsets={};if(typeof state.bgFade!=="number")state.bgFade=60;$("bgFade").value=state.bgFade;if(state.obj==="custom")state.obj="boat-wave";$("eyebrow").value=state.eyebrow;$("title").value=state.title;$("sub").value=state.sub;$("name").value=state.name;$("role").value=state.role;$("ghost").value=state.ghost;for(const k of ["showLogo","showSite","showGhost","showWho","showObj"])$(k).checked=!!state[k];for(const x of document.querySelectorAll(".tpl"))x.setAttribute("aria-pressed",String(x.textContent===(TPLS.find(t=>t.id===state.tpl)||{}).name));}catch(e){}}
+/* שליחה ושמירה */
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
+function fileName(){const n=(state.name||"סטטוס").replace(/[\\/:*?"<>|]/g,"").trim();return `סטטוס-${n}.png`;}
+async function makeBlob(){await render(ctx,state.tpl,state,1);return new Promise(r=>cv.toBlob(r,"image/png"));}
+let dlNs;
+async function downloadsNs(){if(dlNs!==undefined)return dlNs;try{dlNs=window.claude&&window.claude.use?await window.claude.use("downloads"):null;}catch(e){dlNs=null;}return dlNs;}
+async function deliver(preferShare){const btns=[$("share"),$("save")];btns.forEach(b=>b.disabled=true);try{const blob=await makeBlob();const file=new File([blob],fileName(),{type:"image/png"});
+  if(preferShare&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:"סטטוס"});toast("נשלח לחלון השיתוף");return;}catch(e){if(e&&e.name==="AbortError")return;}}
+  const dl=await downloadsNs();if(dl){try{await dl.save({filename:fileName(),data:blob});toast("התמונה נשמרה. עכשיו מעלים אותה לסטטוס");}catch(e){if(e&&e.code==="declined")return;toast("השמירה לא הצליחה כאן. נסי שוב מהטלפון");}return;}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fileName();document.body.appendChild(a);a.click();a.remove();toast("התמונה ירדה למחשב");}
+  finally{btns.forEach(b=>b.disabled=false);}}
+$("share").addEventListener("click",()=>deliver(true));
+$("save").addEventListener("click",()=>deliver(false));
+(async()=>{const testFile=new File([new Blob(["x"])],"a.png",{type:"image/png"});const canShare=!!(navigator.canShare&&navigator.canShare({files:[testFile]}));if(!canShare){$("share").textContent="לשמור ולשתף";$("hint").textContent="בסיום: הכפתור למטה שומר את התמונה בטלפון (באייפון נפתח חלון השיתוף, ושם בוחרים וואטסאפ).";}})();
+restore();syncObj();syncBg();readForm();
+})();
+</script>
+</body>
+</html>

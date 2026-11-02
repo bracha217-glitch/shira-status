@@ -1,0 +1,6 @@
+.env
+.env.*
+*.key
+*.pem
+api_key.txt
+node_modules/
