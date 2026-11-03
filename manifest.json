@@ -1,0 +1,16 @@
+{
+  "name": "מחולל הסטטוס של שירה",
+  "short_name": "סטטוס",
+  "description": "סטטוס 9:16 בשפת המותג של שירה ברכה",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbfbfa",
+  "theme_color": "#233D92",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
